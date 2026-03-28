@@ -32,6 +32,12 @@ cargo run -- stats                                # show version DB statistics
 - `SWISSDAMED_CLIENT_SECRET` — OAuth2 client secret
 - `SWISSDAMED_BASE_URL` — override API base (default: playground)
 
+## macOS App Bundle
+
+```bash
+./bundle_macos.sh          # creates target/release/eudamed2swissdamed.app
+```
+
 ## Architecture
 
 Data flow: `EUDAMED API → eudamed_json/{detail,basic}/*.json → Swissdamed DTOs → Swissdamed M2M API`

@@ -8,6 +8,15 @@ Download medical device data from [EUDAMED](https://ec.europa.eu/tools/eudamed/)
 cargo build --release
 ```
 
+### macOS App Bundle
+
+To create a `.app` bundle with the application icon:
+
+```bash
+./bundle_macos.sh
+open target/release/eudamed2swissdamed.app
+```
+
 ## GUI (Windows / macOS)
 
 Double-click the binary or run without arguments to launch the GUI:

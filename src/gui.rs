@@ -428,13 +428,31 @@ fn load_gui_config(settings: &Settings) -> anyhow::Result<GuiConfig> {
     })
 }
 
+/// Load the embedded app icon as an `egui::IconData`.
+fn load_icon() -> Option<egui::IconData> {
+    let png_bytes = include_bytes!("../assets/icon_256x256.png");
+    let img = image::load_from_memory(png_bytes).ok()?.into_rgba8();
+    let (w, h) = img.dimensions();
+    Some(egui::IconData {
+        rgba: img.into_raw(),
+        width: w,
+        height: h,
+    })
+}
+
 /// Launch the GUI application.
 pub fn run_gui() -> eframe::Result {
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_title("eudamed2swissdamed")
+        .with_inner_size([700.0, 600.0])
+        .with_min_inner_size([500.0, 400.0]);
+
+    if let Some(icon) = load_icon() {
+        viewport = viewport.with_icon(std::sync::Arc::new(icon));
+    }
+
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title("eudamed2swissdamed")
-            .with_inner_size([700.0, 600.0])
-            .with_min_inner_size([500.0, 400.0]),
+        viewport,
         ..Default::default()
     };
 
