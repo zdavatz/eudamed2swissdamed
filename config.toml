@@ -1,0 +1,11 @@
+[swissdamed]
+base_url = "https://playground.swissdamed.ch"
+# client_id and client_secret come from env vars:
+#   SWISSDAMED_CLIENT_ID
+#   SWISSDAMED_CLIENT_SECRET
+
+[eudamed]
+base_url = "https://ec.europa.eu/tools/eudamed/api/devices/udiDiData"
+basic_udi_base_url = "https://ec.europa.eu/tools/eudamed/api/devices/basicUdiData/udiDiData"
+page_size = 300
+parallel = 10

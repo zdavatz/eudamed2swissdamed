@@ -1,0 +1,506 @@
+use serde::Deserialize;
+
+/// Full device detail from GET /devices/udiDiData/{uuid}?languageIso2Code=en
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct ApiDeviceDetail {
+    pub uuid: Option<String>,
+    pub ulid: Option<String>,
+    pub primary_di: Option<DiIdentifier>,
+    pub secondary_di: Option<DiIdentifier>,
+    pub reference: Option<String>,
+    pub base_quantity: Option<u32>,
+    pub trade_name: Option<MultiLangText>,
+    pub additional_description: Option<MultiLangText>,
+    pub additional_information_url: Option<String>,
+
+    // Booleans / flags
+    pub sterile: Option<bool>,
+    pub sterilization: Option<bool>,
+    pub latex: Option<bool>,
+    pub reprocessed: Option<bool>,
+    pub single_use: Option<bool>,
+    pub max_number_of_reuses: Option<u32>,
+    pub max_number_of_reuses_applicable: Option<bool>,
+    pub direct_marking_same_as_udi_di: Option<bool>,
+    pub direct_marking_di: Option<DiIdentifier>,
+    pub unit_of_use: Option<DiIdentifier>,
+
+    // Production identifiers
+    pub udi_pi_type: Option<UdiPiType>,
+
+    // Clinical sizes
+    pub clinical_size_applicable: Option<bool>,
+    pub clinical_sizes: Option<Vec<ClinicalSize>>,
+
+    // Storage and warnings
+    pub storage_applicable: Option<bool>,
+    pub storage_handling_conditions: Option<Vec<StorageHandlingCondition>>,
+    pub critical_warnings_applicable: Option<bool>,
+    pub critical_warnings: Option<Vec<CriticalWarning>>,
+
+    // Market info
+    pub market_info_link: Option<MarketInfoLink>,
+    pub placed_on_the_market: Option<Country>,
+
+    // Device status
+    pub device_status: Option<DeviceStatus>,
+
+    // Nomenclature codes (CND/EMDN)
+    pub cnd_nomenclatures: Option<Vec<CndNomenclature>>,
+
+    // Substances
+    pub medicinal_product_substances: Option<Vec<Substance>>,
+    pub human_product_substances: Option<Vec<Substance>>,
+    pub cmr_substances: Option<Vec<CmrSubstance>>,
+    pub cmr_substance: Option<bool>,
+    pub endocrine_disrupting_substances: Option<Vec<Substance>>,
+    pub endocrine_disruptor: Option<bool>,
+
+    // Annex XVI
+    pub annex_xvi_applicable: Option<bool>,
+
+    // Product designer
+    pub product_designer: Option<ProductDesigner>,
+
+    // OEM
+    pub oem_applicable: Option<bool>,
+
+    // Component DIs (multi-component devices)
+    pub component_dis: Option<Vec<serde_json::Value>>,
+
+    // Direct marking
+    pub direct_marking: Option<bool>,
+
+    // New device
+    pub new_device: Option<bool>,
+
+    // Related device link
+    pub linked_udi_di_view: Option<LinkedUdiDiView>,
+
+    // Packaging hierarchy (containedItem)
+    pub contained_item: Option<ContainedItemNode>,
+
+    // Version info
+    pub version_number: Option<u32>,
+    pub latest_version: Option<bool>,
+    pub version_date: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct DiIdentifier {
+    pub uuid: Option<String>,
+    pub code: Option<String>,
+    pub issuing_agency: Option<RefCode>,
+    #[serde(rename = "type")]
+    pub di_type: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct RefCode {
+    pub code: Option<String>,
+}
+
+/// Recursive packaging hierarchy node from containedItem
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct ContainedItemNode {
+    pub uuid: Option<String>,
+    pub item_identifier: Option<DiIdentifier>,
+    pub parent_uuid: Option<String>,
+    pub contained_items: Option<Vec<ContainedItemNode>>,
+    pub number_of_items: Option<u32>,
+    pub item_status: Option<RefCode>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct MultiLangText {
+    pub texts: Option<Vec<LangText>>,
+    pub text_by_default_language: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct LangText {
+    pub language: Option<Language>,
+    pub text: Option<String>,
+    pub all_languages_applicable: Option<bool>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct Language {
+    pub iso_code: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UdiPiType {
+    pub batch_number: Option<bool>,
+    pub serialization_number: Option<bool>,
+    pub manufacturing_date: Option<bool>,
+    pub expiration_date: Option<bool>,
+    pub software_identification: Option<bool>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct ClinicalSize {
+    pub text: Option<String>,
+    pub value: Option<f64>,
+    pub minimum_value: Option<f64>,
+    pub maximum_value: Option<f64>,
+    #[serde(rename = "type")]
+    pub size_type: Option<RefCode>,
+    pub precision: Option<RefCode>,
+    pub metric_of_measurement: Option<RefCode>,
+    pub clinical_size_type_description: Option<serde_json::Value>,
+    pub measuring_unit_description: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct StorageHandlingCondition {
+    pub type_code: Option<String>,
+    pub mandatory: Option<bool>,
+    pub description: Option<MultiLangText>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct CriticalWarning {
+    pub type_code: Option<String>,
+    pub mandatory: Option<bool>,
+    pub description: Option<MultiLangText>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MarketInfoLink {
+    pub ms_where_available: Option<Vec<MarketAvailability>>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MarketAvailability {
+    pub country: Option<Country>,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct Country {
+    pub name: Option<String>,
+    pub iso2_code: Option<String>,
+    #[serde(rename = "type")]
+    pub country_type: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct DeviceStatus {
+    #[serde(rename = "type")]
+    pub status_type: Option<RefCode>,
+    pub status_date: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct CndNomenclature {
+    pub code: Option<String>,
+    pub description: Option<MultiLangText>,
+}
+
+// --- Substance types ---
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct Substance {
+    pub name: Option<MultiLangText>,
+    pub substance_type: Option<String>,
+    pub cas_number: Option<String>,
+    pub ec_number: Option<String>,
+    pub inn_code: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct CmrSubstance {
+    pub cmr_substance_type: Option<RefCode>,
+    pub name: Option<MultiLangText>,
+    pub cas_number: Option<String>,
+    pub ec_number: Option<String>,
+}
+
+// --- Product designer ---
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct ProductDesigner {
+    pub oem_actor: Option<OemActor>,
+    pub oem_organisation: Option<OemOrganisation>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct OemActor {
+    pub name: Option<String>,
+    pub srn: Option<String>,
+    pub country_iso2_code: Option<String>,
+    pub country_name: Option<String>,
+    pub geographical_address: Option<serde_json::Value>,
+    pub electronic_mail: Option<String>,
+    pub telephone: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct OemOrganisation {
+    pub name: Option<String>,
+    pub geographical_address: Option<serde_json::Value>,
+    pub electronic_mail: Option<String>,
+    pub telephone: Option<String>,
+}
+
+// --- Linked UDI-DI (related legacy/regulation device) ---
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct LinkedUdiDiView {
+    pub udi_di: Option<DiIdentifier>,
+    pub basic_udi_di: Option<DiIdentifier>,
+    pub device_criterion: Option<String>,
+    pub device_linked_on_date: Option<String>,
+}
+
+impl ApiDeviceDetail {
+    /// Extract the refdata suffix and normalize to uppercase with underscores
+    fn extract_refdata_code(code: &str) -> String {
+        code.rsplit('.')
+            .next()
+            .unwrap_or(code)
+            .replace('-', "_")
+            .to_uppercase()
+    }
+
+    /// Extract status code e.g. "refdata.device-model-status.on-the-market" → "ON_THE_MARKET"
+    pub fn status_code(&self) -> Option<String> {
+        let ds = self.device_status.as_ref()?;
+        let st = ds.status_type.as_ref()?;
+        let code = st.code.as_ref()?;
+        Some(Self::extract_refdata_code(code))
+    }
+
+    /// Get the primary DI code
+    pub fn primary_di_code(&self) -> String {
+        self.primary_di
+            .as_ref()
+            .and_then(|di| di.code.clone())
+            .unwrap_or_default()
+    }
+
+    /// Get trade name texts as (language_code, text) pairs
+    pub fn trade_name_texts(&self) -> Vec<(String, String)> {
+        extract_lang_texts(self.trade_name.as_ref())
+    }
+
+    /// Get additional description texts
+    pub fn additional_description_texts(&self) -> Vec<(String, String)> {
+        extract_lang_texts(self.additional_description.as_ref())
+    }
+
+    /// Get production identifier type codes for UDI PI
+    pub fn production_identifiers(&self) -> Vec<String> {
+        let mut ids = Vec::new();
+        if let Some(ref pi) = self.udi_pi_type {
+            if pi.batch_number == Some(true) {
+                ids.push("BATCH_NUMBER".to_string());
+            }
+            if pi.serialization_number == Some(true) {
+                ids.push("SERIAL_NUMBER".to_string());
+            }
+            if pi.manufacturing_date == Some(true) {
+                ids.push("MANUFACTURING_DATE".to_string());
+            }
+            if pi.expiration_date == Some(true) {
+                ids.push("EXPIRATION_DATE".to_string());
+            }
+            if pi.software_identification == Some(true) {
+                ids.push("SOFTWARE_IDENTIFICATION".to_string());
+            }
+        }
+        ids
+    }
+}
+
+pub fn extract_lang_texts(mlt: Option<&MultiLangText>) -> Vec<(String, String)> {
+    mlt.and_then(|t| t.texts.as_ref())
+        .map(|texts| {
+            texts
+                .iter()
+                .filter_map(|lt| {
+                    let text = lt.text.clone()?;
+                    if text.is_empty() {
+                        return None;
+                    }
+                    let lang = lt
+                        .language
+                        .as_ref()
+                        .and_then(|l| l.iso_code.clone())
+                        .or_else(|| {
+                            if lt.all_languages_applicable == Some(true) {
+                                Some("en".to_string())
+                            } else {
+                                None
+                            }
+                        })?;
+                    Some((lang, text))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Parse a device detail JSON string
+pub fn parse_api_detail(json_str: &str) -> anyhow::Result<ApiDeviceDetail> {
+    let detail: ApiDeviceDetail = serde_json::from_str(json_str)?;
+    Ok(detail)
+}
+
+// --- Basic UDI-DI data (from /devices/basicUdiData/udiDiData/{uuid}) ---
+
+/// Basic UDI-DI record with MDR mandatory fields (active, implantable, etc.)
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct BasicUdiDiData {
+    pub uuid: Option<String>,
+    pub active: Option<bool>,
+    pub implantable: Option<bool>,
+    pub measuring_function: Option<bool>,
+    pub reusable: Option<bool>,
+    pub medicinal_product: Option<bool>,
+    pub administering_medicine: Option<bool>,
+    pub human_tissues: Option<bool>,
+    pub animal_tissues: Option<bool>,
+    pub human_product: Option<bool>,
+    pub device_name: Option<String>,
+    pub device_model: Option<String>,
+    pub multi_component: Option<MultiComponentInfo>,
+    pub risk_class: Option<RefCode>,
+    pub legislation: Option<LegislationInfo>,
+    pub basic_udi: Option<DiIdentifier>,
+    pub manufacturer: Option<BasicUdiManufacturer>,
+    pub authorised_representative: Option<BasicUdiAuthorisedRep>,
+    pub device_certificate_info_list_for_display: Option<Vec<DeviceCertificate>>,
+    pub medical_purpose: Option<MultiLangText>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct MultiComponentInfo {
+    pub code: Option<String>,
+    pub criterion: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct LegislationInfo {
+    pub code: Option<String>,
+    pub legacy_directive: Option<bool>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct BasicUdiManufacturer {
+    pub uuid: Option<String>,
+    pub name: Option<String>,
+    pub srn: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct BasicUdiAuthorisedRep {
+    pub name: Option<String>,
+    pub srn: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct DeviceCertificate {
+    pub certificate_number: Option<String>,
+    pub certificate_revision: Option<String>,
+    pub certificate_expiry: Option<String>,
+    pub certificate_type: Option<RefCode>,
+    pub notified_body: Option<CertificateNotifiedBody>,
+    pub issue_date: Option<String>,
+    pub starting_validity_date: Option<String>,
+    pub status: Option<RefCode>,
+    pub nb_provided_certificate: Option<bool>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct CertificateNotifiedBody {
+    pub name: Option<String>,
+    pub srn: Option<String>,
+}
+
+impl BasicUdiDiData {
+    /// Check if device is SPP (System/Procedure Pack) based on criterion field
+    pub fn is_spp(&self) -> bool {
+        self.multi_component.as_ref()
+            .and_then(|mc| mc.criterion.as_ref())
+            .map(|c| c == "SPP")
+            .unwrap_or(false)
+    }
+
+    /// Extract risk class code (e.g. "refdata.risk-class.class-iia")
+    pub fn risk_class_code(&self) -> Option<String> {
+        self.risk_class.as_ref()?.code.clone()
+    }
+
+    /// Get the regulatory act from the legislation field.
+    /// Returns e.g. "MDR", "IVDR", "MDD", "AIMDD", "IVDD".
+    pub fn regulatory_act(&self) -> Option<String> {
+        let code = self.legislation.as_ref()?.code.as_ref()?;
+        let suffix = code.rsplit('.').next().unwrap_or(code);
+        Some(suffix.to_uppercase())
+    }
+
+    /// Extract medical purpose texts (for SPP devices)
+    pub fn medical_purpose_texts(&self) -> Vec<(String, String)> {
+        extract_lang_texts(self.medical_purpose.as_ref())
+    }
+}
+
+/// Parse a Basic UDI-DI JSON file
+pub fn parse_basic_udi_di(json_str: &str) -> anyhow::Result<BasicUdiDiData> {
+    let data: BasicUdiDiData = serde_json::from_str(json_str)?;
+    Ok(data)
+}

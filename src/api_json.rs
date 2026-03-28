@@ -1,0 +1,73 @@
+use serde::Deserialize;
+
+/// Represents one device record from the EUDAMED public API listing endpoint
+/// (GET /devices/udiDiData?page=N&pageSize=300)
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct ApiDevice {
+    pub basic_udi: Option<String>,
+    pub primary_di: Option<String>,
+    pub uuid: Option<String>,
+    pub ulid: Option<String>,
+    pub risk_class: Option<RefCode>,
+    pub trade_name: Option<String>,
+    pub manufacturer_name: Option<String>,
+    pub manufacturer_srn: Option<String>,
+    pub device_status_type: Option<RefCode>,
+    pub manufacturer_status: Option<RefCode>,
+    pub latest_version: Option<bool>,
+    pub version_number: Option<serde_json::Value>,
+    pub reference: Option<String>,
+    pub issuing_agency: Option<serde_json::Value>,
+    pub container_package_count: Option<serde_json::Value>,
+    pub authorised_representative_srn: Option<String>,
+    pub authorised_representative_name: Option<String>,
+    pub sterile: Option<serde_json::Value>,
+    pub multi_component: Option<serde_json::Value>,
+    pub device_criterion: Option<serde_json::Value>,
+    pub device_name: Option<String>,
+    pub device_model: Option<String>,
+    #[serde(rename = "mfOrPrSrn")]
+    pub mf_or_pr_srn: Option<String>,
+    pub applicable_legislation: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct RefCode {
+    pub code: Option<String>,
+}
+
+/// Paginated listing response wrapper
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ListingResponse {
+    pub content: Vec<ApiDevice>,
+    pub total_elements: Option<u64>,
+    pub total_pages: Option<u64>,
+}
+
+impl ApiDevice {
+    /// Extract the risk class code from refdata
+    /// e.g. "refdata.risk-class.class-iib" → "CLASS_IIB"
+    pub fn risk_class_code(&self) -> Option<String> {
+        self.risk_class.as_ref()?.code.as_ref().map(|c| {
+            c.rsplit('.')
+                .next()
+                .unwrap_or(c)
+                .replace('-', "_")
+                .to_uppercase()
+        })
+    }
+
+    /// Extract device status code
+    pub fn status_code(&self) -> Option<String> {
+        self.device_status_type.as_ref()?.code.as_ref().map(|c| {
+            c.rsplit('.')
+                .next()
+                .unwrap_or(c)
+                .replace('-', "_")
+                .to_uppercase()
+        })
+    }
+}
