@@ -1,6 +1,7 @@
 //! Cross-platform GUI (Windows + macOS) using egui/eframe.
 //! Provides SRN input, credentials, and a one-click download & push pipeline.
 
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
@@ -13,6 +14,8 @@ use crate::version_db::VersionDb;
 
 const DATA_DIR: &str = "eudamed_json";
 const DB_PATH: &str = "db/version_tracking.db";
+const SETTINGS_PATH: &str = "settings.json";
+const LOGS_DIR: &str = "logs";
 
 /// Messages from the worker thread to the GUI.
 enum WorkerMsg {
@@ -22,14 +25,31 @@ enum WorkerMsg {
 }
 
 /// Persistent state saved between sessions.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 struct Settings {
     srns: String,
     limit: String,
+    #[serde(default)]
     client_id: String,
+    #[serde(default)]
     client_secret: String,
     base_url: String,
     dry_run: bool,
+}
+
+impl Settings {
+    fn load() -> Self {
+        std::fs::read_to_string(SETTINGS_PATH)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    }
+
+    fn save(&self) {
+        if let Ok(json) = serde_json::to_string_pretty(self) {
+            let _ = std::fs::write(SETTINGS_PATH, json);
+        }
+    }
 }
 
 pub struct App {
@@ -38,27 +58,48 @@ pub struct App {
     running: bool,
     rx: Option<mpsc::Receiver<WorkerMsg>>,
     show_credentials: bool,
+    icon_texture: Option<egui::TextureHandle>,
 }
 
 impl App {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        // Pre-fill from env vars if available
-        let client_id = std::env::var("SWISSDAMED_CLIENT_ID").unwrap_or_default();
-        let client_secret = std::env::var("SWISSDAMED_CLIENT_SECRET").unwrap_or_default();
-        let base_url = std::env::var("SWISSDAMED_BASE_URL")
-            .unwrap_or_else(|_| "https://playground.swissdamed.ch".to_string());
+        let mut settings = Settings::load();
+
+        // Env vars override saved credentials
+        if let Ok(v) = std::env::var("SWISSDAMED_CLIENT_ID") {
+            if !v.is_empty() { settings.client_id = v; }
+        }
+        if let Ok(v) = std::env::var("SWISSDAMED_CLIENT_SECRET") {
+            if !v.is_empty() { settings.client_secret = v; }
+        }
+        if let Ok(v) = std::env::var("SWISSDAMED_BASE_URL") {
+            if !v.is_empty() { settings.base_url = v; }
+        }
+        if settings.base_url.is_empty() {
+            settings.base_url = "https://playground.swissdamed.ch".to_string();
+        }
 
         App {
-            settings: Settings {
-                client_id,
-                client_secret,
-                base_url,
-                ..Default::default()
-            },
+            settings,
             log_lines: Vec::new(),
             running: false,
             rx: None,
             show_credentials: false,
+            icon_texture: None,
+        }
+    }
+
+    fn save_log(&self) {
+        if self.log_lines.is_empty() {
+            return;
+        }
+        let _ = std::fs::create_dir_all(LOGS_DIR);
+        let timestamp = chrono::Local::now().format("%Y-%m-%d_%H%M%S");
+        let path = PathBuf::from(LOGS_DIR).join(format!("{}.log", timestamp));
+        if let Ok(mut f) = std::fs::File::create(&path) {
+            for line in &self.log_lines {
+                let _ = writeln!(f, "{}", line);
+            }
         }
     }
 
@@ -77,6 +118,11 @@ impl App {
 }
 
 impl eframe::App for App {
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        self.settings.save();
+        self.save_log();
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Drain messages from worker thread
         if let Some(ref rx) = self.rx {
@@ -94,6 +140,8 @@ impl eframe::App for App {
                             self.log_lines.push(format!("=== FAILED === {}", summary));
                         }
                         self.running = false;
+                        self.save_log();
+                        self.settings.save();
                     }
                 }
             }
@@ -104,7 +152,28 @@ impl eframe::App for App {
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("eudamed2swissdamed");
+            // Load icon texture once
+            let icon_texture = self.icon_texture.get_or_insert_with(|| {
+                let png_bytes = include_bytes!("../assets/icon_256x256.png");
+                let img = image::load_from_memory(png_bytes).unwrap().into_rgba8();
+                let size = [img.width() as usize, img.height() as usize];
+                let pixels = img.into_raw();
+                let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &pixels);
+                ctx.load_texture("app-icon", color_image, egui::TextureOptions::LINEAR)
+            });
+
+            ui.horizontal(|ui| {
+                ui.heading("eudamed2swissdamed");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let icon_button = ui.add(
+                        egui::ImageButton::new(egui::load::SizedTexture::new(icon_texture.id(), egui::vec2(48.0, 48.0)))
+                            .frame(false),
+                    ).on_hover_text("zdavatz@ywesee.com");
+                    if icon_button.clicked() {
+                        let _ = open::that("mailto:zdavatz@ywesee.com");
+                    }
+                });
+            });
             ui.add_space(4.0);
 
             // --- SRN input ---

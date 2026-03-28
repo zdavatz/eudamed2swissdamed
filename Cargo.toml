@@ -15,6 +15,7 @@ sha2 = "0.10"
 toml = "0.8"
 eframe = "0.31"
 image = { version = "0.25", default-features = false, features = ["png"] }
+open = "5"
 
 [target.'cfg(windows)'.build-dependencies]
 winresource = "0.1"
