@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 cargo build --release
+cargo run                                         # launch GUI (no args)
 cargo run -- download --10                        # download first 10 devices
 cargo run -- download --srn CH-MF-000023141       # download by manufacturer SRN
 cargo run -- convert                              # show conversion summary
@@ -37,7 +38,8 @@ Data flow: `EUDAMED API → eudamed_json/{detail,basic}/*.json → Swissdamed DT
 
 | Module | Purpose |
 |--------|---------|
-| `main.rs` | CLI entry point: download, convert, push, status, stats subcommands |
+| `main.rs` | Entry point: launches GUI (no args) or CLI subcommands |
+| `gui.rs` | Cross-platform GUI (egui/eframe): SRN input, credentials, download & push with progress log |
 | `eudamed_api.rs` | EUDAMED API client: paginated listing, parallel detail/basic UDI-DI download with resume |
 | `api_detail.rs` | EUDAMED detail API response types (serde deserialization) |
 | `api_json.rs` | EUDAMED listing API response types |

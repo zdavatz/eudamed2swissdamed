@@ -8,7 +8,24 @@ Download medical device data from [EUDAMED](https://ec.europa.eu/tools/eudamed/)
 cargo build --release
 ```
 
-## Usage
+## GUI (Windows / macOS)
+
+Double-click the binary or run without arguments to launch the GUI:
+
+```bash
+eudamed2swissdamed
+```
+
+The GUI provides:
+- SRN input (one per line, space or comma-separated)
+- Optional limit per SRN
+- Swissdamed credentials (Client ID, Secret, Base URL)
+- One-click "Download & Push" with live progress log
+- Dry-run mode for download-only preview
+
+Credentials are pre-filled from environment variables if set.
+
+## CLI Usage
 
 ```bash
 # Download from EUDAMED

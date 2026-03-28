@@ -1,6 +1,7 @@
 mod api_detail;
 mod api_json;
 mod eudamed_api;
+mod gui;
 mod swissdamed;
 mod swissdamed_api;
 mod version_db;
@@ -20,11 +21,16 @@ fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
 
     if args.is_empty() {
-        print_usage();
+        // No arguments → launch GUI
+        gui::run_gui().map_err(|e| anyhow::anyhow!("GUI error: {}", e))?;
         return Ok(());
     }
 
     match args[0].as_str() {
+        "gui" => {
+            gui::run_gui().map_err(|e| anyhow::anyhow!("GUI error: {}", e))?;
+            return Ok(());
+        }
         "download" => cmd_download(&args[1..]),
         "convert" => cmd_convert(&args[1..]),
         "push" => cmd_push(&args[1..]),
