@@ -472,11 +472,14 @@ pub struct CertificateNotifiedBody {
 }
 
 impl BasicUdiDiData {
-    /// Check if device is SPP (System/Procedure Pack) based on criterion field
+    /// Check if device is SPP (System/Procedure Pack) based on multi_component code
     pub fn is_spp(&self) -> bool {
         self.multi_component.as_ref()
-            .and_then(|mc| mc.criterion.as_ref())
-            .map(|c| c == "SPP")
+            .and_then(|mc| mc.code.as_ref())
+            .map(|c| {
+                let suffix = c.rsplit('.').next().unwrap_or(c);
+                matches!(suffix, "system" | "procedure-pack" | "spp-procedure-pack")
+            })
             .unwrap_or(false)
     }
 

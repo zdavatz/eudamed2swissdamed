@@ -168,14 +168,15 @@ pub struct MdrBasicUdiDto {
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SppBasicUdiDto {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub device_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub model_name: Option<String>,
+    // Field order matters — Swissdamed validates against XSD element ordering
     pub identifier: DiCodeDto,
     pub risk_class: String,
     #[serde(rename = "type")]
     pub device_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_name: Option<String>,
     pub medicinal_purpose: Vec<LangText>,
     pub pr_actor_code: String,
 }
@@ -220,25 +221,23 @@ pub struct PackageUdiDiDto {
 #[serde(rename_all = "camelCase")]
 pub struct LangText {
     pub language: String,
-    pub text: String,
+    pub text_value: String,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageHandlingConditionDto {
-    #[serde(rename = "type")]
-    pub condition_type: String,
+    pub storage_handling_condition_value: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub description: Vec<LangText>,
+    pub comments: Vec<LangText>,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CriticalWarningDto {
-    #[serde(rename = "type")]
-    pub warning_type: String,
+    pub warning_value: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub description: Vec<LangText>,
+    pub comments: Vec<LangText>,
 }
 
 #[derive(Serialize, Debug)]
@@ -294,8 +293,8 @@ fn extract_spp_type(code: &str) -> String {
 /// Map language texts from EUDAMED MultiLangText
 fn map_lang_texts(texts: &[(String, String)]) -> Vec<LangText> {
     texts.iter().map(|(lang, text)| LangText {
-        language: lang.clone(),
-        text: text.clone(),
+        language: lang.to_uppercase(),
+        text_value: text.clone(),
     }).collect()
 }
 
@@ -347,13 +346,14 @@ fn map_storage_handling(device: &ApiDeviceDetail) -> Vec<StorageHandlingConditio
                     let text = t.text.clone()?;
                     let lang = t.language.as_ref()
                         .and_then(|l| l.iso_code.clone())
-                        .unwrap_or_else(|| "en".to_string());
-                    Some(LangText { language: lang, text })
+                        .unwrap_or_else(|| "en".to_string())
+                        .to_uppercase();
+                    Some(LangText { language: lang, text_value: text })
                 }).collect())
                 .unwrap_or_default();
             Some(StorageHandlingConditionDto {
-                condition_type: suffix.to_string(),
-                description: descriptions,
+                storage_handling_condition_value: suffix.to_uppercase(),
+                comments: descriptions,
             })
         }).collect())
         .unwrap_or_default()
@@ -371,13 +371,14 @@ fn map_critical_warnings(device: &ApiDeviceDetail) -> Vec<CriticalWarningDto> {
                     let text = t.text.clone()?;
                     let lang = t.language.as_ref()
                         .and_then(|l| l.iso_code.clone())
-                        .unwrap_or_else(|| "en".to_string());
-                    Some(LangText { language: lang, text })
+                        .unwrap_or_else(|| "en".to_string())
+                        .to_uppercase();
+                    Some(LangText { language: lang, text_value: text })
                 }).collect())
                 .unwrap_or_default();
             Some(CriticalWarningDto {
-                warning_type: suffix.to_string(),
-                description: descriptions,
+                warning_value: suffix.to_uppercase(),
+                comments: descriptions,
             })
         }).collect())
         .unwrap_or_default()
@@ -563,7 +564,15 @@ pub fn to_spp_dto(device: &ApiDeviceDetail, basic_udi: &BasicUdiDiData) -> SppDt
                 .and_then(|mc| mc.code.as_ref())
                 .map(|c| extract_spp_type(c))
                 .unwrap_or_else(|| "PROCEDURE_PACK".to_string()),
-            medicinal_purpose: map_lang_texts(&basic_udi.medical_purpose_texts()),
+            medicinal_purpose: {
+                let texts = map_lang_texts(&basic_udi.medical_purpose_texts());
+                if texts.is_empty() {
+                    // XSD requires at least one medicinalPurpose entry for SPP
+                    vec![LangText { language: "EN".to_string(), text_value: basic_udi.device_name.clone().unwrap_or_default() }]
+                } else {
+                    texts
+                }
+            },
             pr_actor_code: basic_udi.manufacturer.as_ref()
                 .and_then(|m| m.srn.clone())
                 .unwrap_or_default(),

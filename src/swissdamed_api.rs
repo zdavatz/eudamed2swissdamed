@@ -46,16 +46,17 @@ impl SwissdamedClient {
         }
     }
 
-    /// Get OAuth2 access token via client credentials flow
+    /// Get OAuth2 access token via client credentials flow (CIAM endpoint)
     pub fn authenticate(&mut self) -> Result<()> {
-        let token_url = format!("{}/oauth2/token", self.base_url);
+        let token_url = "https://3a5c95df-c59f-418a-96fc-b8531bf24be8.ciamlogin.com/3a5c95df-c59f-418a-96fc-b8531bf24be8/oauth2/v2.0/token";
+        let scope = "8d64e26d-ea71-4ab8-90d6-2acd795eb668/.default";
         if self.verbose {
             eprintln!("  POST {}", token_url);
         }
 
         let body = format!(
-            "grant_type=client_credentials&client_id={}&client_secret={}",
-            self.client_id, self.client_secret
+            "grant_type=client_credentials&client_id={}&client_secret={}&scope={}",
+            self.client_id, self.client_secret, scope
         );
 
         let (status, response) = post_request(
