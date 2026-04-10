@@ -491,6 +491,14 @@ jobs:
           $descriptionDe = "EUDAMED Medizinprodukte-Daten herunterladen und an die Swissdamed M2M API senden. Download aus der EU EUDAMED Datenbank und Push an die Swissdamed API. Open Source (GPL v3)."
           $descriptionEn = "Download EUDAMED medical device data and push to the Swissdamed M2M API. Download from the EU EUDAMED database and push to the Swissdamed API. Open Source (GPL v3)."
 
+          # Submission-level questionnaire fields
+          $submission.hasExternalInAppProducts = $false
+          $submission.meetAccessibilityGuidelines = $true
+          $submission.canInstallOnRemovableMedia = $true
+          $submission.automaticBackupEnabled = $true
+          $submission.hardwarePreferences = @("Keyboard", "Mouse")
+          $submission.notesForCertification = "This is a desktop utility for downloading medical device data from the EU EUDAMED database and pushing it to the Swissdamed M2M API. It requires internet access. No login required for download; Swissdamed API credentials are optional for push functionality. Contact: zdavatz@ywesee.com"
+
           $submission.listings = @{
             "de-de" = @{
               baseListing = @{
@@ -502,6 +510,7 @@ jobs:
                 licenseTerms = "GNU General Public License v3.0"
                 privacyPolicy = "https://github.com/zdavatz/eudamed2swissdamed"
                 websiteUrl = "https://github.com/zdavatz/eudamed2swissdamed"
+                supportContact = "zdavatz@ywesee.com"
                 images = $images
               }
             }
@@ -515,6 +524,7 @@ jobs:
                 licenseTerms = "GNU General Public License v3.0"
                 privacyPolicy = "https://github.com/zdavatz/eudamed2swissdamed"
                 websiteUrl = "https://github.com/zdavatz/eudamed2swissdamed"
+                supportContact = "zdavatz@ywesee.com"
                 images = $images
               }
             }
