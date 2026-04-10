@@ -13,6 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sync Cargo.toml version from git tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          sed -i '' "s/^version = \".*\"/version = \"${TAG_VERSION}\"/" Cargo.toml
+          echo "Version set to: $TAG_VERSION"
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -216,6 +222,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sync Cargo.toml version from git tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION}\"/" Cargo.toml
+          echo "Version set to: $TAG_VERSION"
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -282,6 +294,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Sync Cargo.toml version from git tag
+        shell: bash
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^version = \".*\"/version = \"${TAG_VERSION}\"/" Cargo.toml
+          echo "Version set to: $TAG_VERSION"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
