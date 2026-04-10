@@ -451,6 +451,23 @@ jobs:
           $submission.allowMicrosoftDecideAppAvailabilityToFutureDeviceFamilies = $true
 
           # Set store listing
+          # Screenshots are included as images with PendingUpload status
+          $screenshotFiles = @(
+            "screenshot_1_main.png",
+            "screenshot_2_running.png",
+            "screenshot_3_done.png",
+            "screenshot_4_credentials.png",
+            "screenshot_5_dryrun.png"
+          )
+          $images = @()
+          foreach ($ss in $screenshotFiles) {
+            $images += @{
+              fileName = $ss
+              fileStatus = "PendingUpload"
+              imageType = "Screenshot"
+            }
+          }
+
           $releaseNotes = "$env:GITHUB_REF_NAME`: $(git log -1 --format=%s)"
           $descriptionDe = "EUDAMED Medizinprodukte-Daten herunterladen und an die Swissdamed M2M API senden. Download aus der EU EUDAMED Datenbank und Push an die Swissdamed API. Open Source (GPL v3)."
           $descriptionEn = "Download EUDAMED medical device data and push to the Swissdamed M2M API. Download from the EU EUDAMED database and push to the Swissdamed API. Open Source (GPL v3)."
@@ -466,6 +483,7 @@ jobs:
                 licenseTerms = "GNU General Public License v3.0"
                 privacyPolicy = "https://github.com/zdavatz/eudamed2swissdamed"
                 websiteUrl = "https://github.com/zdavatz/eudamed2swissdamed"
+                images = $images
               }
             }
             "en-us" = @{
@@ -478,6 +496,7 @@ jobs:
                 licenseTerms = "GNU General Public License v3.0"
                 privacyPolicy = "https://github.com/zdavatz/eudamed2swissdamed"
                 websiteUrl = "https://github.com/zdavatz/eudamed2swissdamed"
+                images = $images
               }
             }
           }
@@ -509,9 +528,15 @@ jobs:
             -ContentType "application/json; charset=utf-8"
           Write-Host "Updated submission with package: $msixFileName"
 
-          # Upload MSIX as ZIP to the Azure Blob upload URL
+          # Upload MSIX + screenshots as ZIP to the Azure Blob upload URL
+          # The ZIP must contain the MSIX and screenshot files with exact names
           $zipPath = [System.IO.Path]::Combine($env:TEMP, "upload.zip")
-          Compress-Archive -Path $msix.FullName -DestinationPath $zipPath -Force
+          $zipItems = @($msix.FullName)
+          foreach ($ss in $screenshotFiles) {
+            $ssPath = Join-Path "screenshots" "windows" $ss
+            if (Test-Path $ssPath) { $zipItems += (Resolve-Path $ssPath).Path }
+          }
+          Compress-Archive -Path $zipItems -DestinationPath $zipPath -Force
           $zipBytes = [System.IO.File]::ReadAllBytes($zipPath)
           Invoke-RestMethod -Method Put -Uri $uploadUrl `
             -Headers @{"x-ms-blob-type" = "BlockBlob"} `
