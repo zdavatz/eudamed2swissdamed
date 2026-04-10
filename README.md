@@ -46,6 +46,16 @@ The GUI provides:
 
 Credentials are pre-filled from environment variables if set.
 
+## Screenshots
+
+### Windows Store
+
+| | |
+|---|---|
+| ![Main](screenshots/windows/screenshot_1_main.png) | ![Running](screenshots/windows/screenshot_2_running.png) |
+| ![Done](screenshots/windows/screenshot_3_done.png) | ![Credentials](screenshots/windows/screenshot_4_credentials.png) |
+| ![Dry Run](screenshots/windows/screenshot_5_dryrun.png) | |
+
 ## CLI Usage
 
 ```bash

@@ -68,6 +68,15 @@ Tag-push (`v*`) triggers `.github/workflows/release.yml` which builds:
 - **Microsoft Store:** `9NH43R1CMKFN`
 - **macOS Bundle ID:** `com.ywesee.eudamed2swissdamed`
 
+## Windows Store Screenshots
+
+```bash
+pip install Pillow
+python generate_screenshots_windows.py    # outputs to screenshots/windows/
+```
+
+Generates 5 screenshots at 3840x2160 (4K) PNG using Python/Pillow, matching the egui light theme. Used for Microsoft Store listing.
+
 ## Architecture
 
 Data flow: `EUDAMED API → eudamed_json/{detail,basic}/*.json → Swissdamed DTOs → Swissdamed M2M API`
