@@ -367,3 +367,161 @@ jobs:
             artifacts/linux-packages/*.tar.gz
             artifacts/linux-packages/*.AppImage
           generate_release_notes: true
+
+  publish-microsoft-store:
+    needs: [build-windows]
+    runs-on: windows-latest
+    if: vars.MSSTORE_ENABLED == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-packages
+          path: artifacts
+
+      - name: Publish to Microsoft Store
+        shell: pwsh
+        env:
+          MSSTORE_TENANT_ID: ${{ secrets.MSSTORE_TENANT_ID }}
+          MSSTORE_CLIENT_ID: ${{ secrets.MSSTORE_CLIENT_ID }}
+          MSSTORE_CLIENT_SECRET: ${{ secrets.MSSTORE_CLIENT_SECRET }}
+        run: |
+          $msix = Get-ChildItem artifacts/*.msix | Select-Object -First 1
+          Write-Host "Submitting: $($msix.FullName)"
+
+          # Get OAuth2 token from Azure AD
+          $tokenBody = @{
+            grant_type    = "client_credentials"
+            client_id     = $env:MSSTORE_CLIENT_ID
+            client_secret = $env:MSSTORE_CLIENT_SECRET
+            resource      = "https://manage.devcenter.microsoft.com"
+          }
+          $tokenResp = Invoke-RestMethod -Method Post `
+            -Uri "https://login.microsoftonline.com/$($env:MSSTORE_TENANT_ID)/oauth2/token" `
+            -Body $tokenBody
+          $token = $tokenResp.access_token
+          Write-Host "Got access token"
+
+          $headers = @{
+            Authorization = "Bearer $token"
+            "Content-Type" = "application/json"
+          }
+
+          # Get app info and current submission
+          $appId = "9NH43R1CMKFN"
+          $appResp = Invoke-RestMethod -Method Get `
+            -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId" `
+            -Headers $headers
+          Write-Host "App: $($appResp.primaryName)"
+
+          # If there's a pending submission, delete it
+          if ($appResp.pendingApplicationSubmission) {
+            $pendingId = $appResp.pendingApplicationSubmission.id
+            Write-Host "Deleting pending submission: $pendingId"
+            Invoke-RestMethod -Method Delete `
+              -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions/$pendingId" `
+              -Headers $headers
+          }
+
+          # Create new submission (clones the last published one)
+          $subResp = Invoke-RestMethod -Method Post `
+            -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions" `
+            -Headers $headers
+          $subId = $subResp.id
+          $uploadUrl = $subResp.fileUploadUrl
+          Write-Host "Created submission: $subId"
+          Write-Host "Upload URL available: $($uploadUrl.Length -gt 0)"
+
+          # Update submission: add our MSIX package and set required fields
+          $submission = $subResp
+          $msixFileName = $msix.Name
+
+          # Set application category (required)
+          $submission.applicationCategory = "BooksAndReference_EReader"
+
+          # Set target device families
+          $submission.allowTargetFutureDeviceFamilies = @{
+            Desktop = $true
+            Mobile = $false
+            Xbox = $false
+            Holographic = $false
+          }
+          $submission.allowMicrosoftDecideAppAvailabilityToFutureDeviceFamilies = $true
+
+          # Set store listing
+          $releaseNotes = "$env:GITHUB_REF_NAME`: $(git log -1 --format=%s)"
+          $descriptionDe = "EUDAMED Medizinprodukte-Daten herunterladen und an die Swissdamed M2M API senden. Download aus der EU EUDAMED Datenbank und Push an die Swissdamed API. Open Source (GPL v3)."
+          $descriptionEn = "Download EUDAMED medical device data and push to the Swissdamed M2M API. Download from the EU EUDAMED database and push to the Swissdamed API. Open Source (GPL v3)."
+
+          $submission.listings = @{
+            "de-de" = @{
+              baseListing = @{
+                title = "Eudamed2Swissdamed"
+                description = $descriptionDe
+                releaseNotes = $releaseNotes
+                keywords = @("EUDAMED", "Medizinprodukte", "Swissdamed", "UDI", "MDR", "IVDR")
+                copyrightAndTrademarkInfo = "Copyright 2026 ywesee GmbH"
+                licenseTerms = "GNU General Public License v3.0"
+                privacyPolicy = "https://github.com/zdavatz/eudamed2swissdamed"
+                websiteUrl = "https://github.com/zdavatz/eudamed2swissdamed"
+              }
+            }
+            "en-us" = @{
+              baseListing = @{
+                title = "Eudamed2Swissdamed"
+                description = $descriptionEn
+                releaseNotes = $releaseNotes
+                keywords = @("EUDAMED", "medical device", "Swissdamed", "UDI", "MDR", "IVDR")
+                copyrightAndTrademarkInfo = "Copyright 2026 ywesee GmbH"
+                licenseTerms = "GNU General Public License v3.0"
+                privacyPolicy = "https://github.com/zdavatz/eudamed2swissdamed"
+                websiteUrl = "https://github.com/zdavatz/eudamed2swissdamed"
+              }
+            }
+          }
+
+          # Remove old packages (mark as PendingDelete)
+          if ($submission.applicationPackages) {
+            foreach ($pkg in $submission.applicationPackages) {
+              $pkg.fileStatus = "PendingDelete"
+            }
+          } else {
+            $submission.applicationPackages = @()
+          }
+
+          # Add our new package
+          $newPackage = @{
+            fileName = $msixFileName
+            fileStatus = "PendingUpload"
+            minimumDirectXVersion = "None"
+            minimumSystemRam = "None"
+          }
+          $submission.applicationPackages += $newPackage
+
+          # PUT the updated submission JSON
+          $updateBody = $submission | ConvertTo-Json -Depth 20 -Compress
+          Invoke-RestMethod -Method Put `
+            -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions/$subId" `
+            -Headers $headers `
+            -Body $updateBody `
+            -ContentType "application/json; charset=utf-8"
+          Write-Host "Updated submission with package: $msixFileName"
+
+          # Upload MSIX as ZIP to the Azure Blob upload URL
+          $zipPath = [System.IO.Path]::Combine($env:TEMP, "upload.zip")
+          Compress-Archive -Path $msix.FullName -DestinationPath $zipPath -Force
+          $zipBytes = [System.IO.File]::ReadAllBytes($zipPath)
+          Invoke-RestMethod -Method Put -Uri $uploadUrl `
+            -Headers @{"x-ms-blob-type" = "BlockBlob"} `
+            -Body $zipBytes `
+            -ContentType "application/octet-stream"
+          Write-Host "Uploaded package ZIP ($([math]::Round($zipBytes.Length/1MB, 2)) MB)"
+
+          # Commit the submission
+          $commitResp = Invoke-RestMethod -Method Post `
+            -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appId/submissions/$subId/commit" `
+            -Headers $headers
+          Write-Host "Submission committed: $subId"
+          Write-Host "Commit status: $($commitResp.status)"

@@ -2,6 +2,18 @@
 
 Download medical device data from [EUDAMED](https://ec.europa.eu/tools/eudamed/) and push it to the [Swissdamed](https://www.swissdamed.ch/) M2M API.
 
+## Download
+
+Pre-built binaries are available on the [Releases](https://github.com/zdavatz/eudamed2swissdamed/releases) page:
+
+| Platform | Format |
+|----------|--------|
+| **macOS** (Universal) | `.dmg` (notarized) |
+| **Windows** | `.zip` (portable) / `.msix` |
+| **Linux** | `.tar.gz` / `.AppImage` |
+
+Also available on the [Microsoft Store](https://apps.microsoft.com/detail/9NH43R1CMKFN).
+
 ## Build
 
 ```bash

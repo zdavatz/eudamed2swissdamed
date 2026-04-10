@@ -38,6 +38,36 @@ cargo run -- stats                                # show version DB statistics
 ./bundle_macos.sh          # creates target/release/eudamed2swissdamed.app
 ```
 
+## CI/CD Release
+
+Tag-push (`v*`) triggers `.github/workflows/release.yml` which builds:
+- **macOS:** Universal binary → signed `.app` → notarized `.dmg` + App Store `.pkg`
+- **Windows:** `.zip` + `.msix` → Microsoft Store submission (if `MSSTORE_ENABLED=true`)
+- **Linux:** `.tar.gz` + `.AppImage`
+
+### Required GitHub Secrets
+
+| Secret | Purpose |
+|--------|---------|
+| `APPLE_API_KEY_P8` | App Store Connect API key (.p8, base64) |
+| `APPLE_API_KEY_ID` | API key ID |
+| `APPLE_API_ISSUER_ID` | App Store Connect Issuer ID |
+| `APPLE_TEAM_ID` | Apple Developer Team ID |
+| `MACOS_CERTIFICATE` | Mac App Distribution cert (.p12, base64) |
+| `MACOS_CERTIFICATE_PASSWORD` | Password for above |
+| `MACOS_INSTALLER_CERTIFICATE` | Mac Installer Distribution cert (.p12, base64) |
+| `MACOS_INSTALLER_CERTIFICATE_PASSWORD` | Password for above |
+| `MACOS_DEVELOPER_ID_CERTIFICATE` | Developer ID Application cert (.p12, base64) |
+| `MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD` | Password for above |
+| `MACOS_PROVISIONING_PROFILE` | Provisioning profile (base64) |
+| `MSSTORE_TENANT_ID` | Azure AD Tenant ID |
+| `MSSTORE_CLIENT_ID` | Azure AD App Client ID |
+| `MSSTORE_CLIENT_SECRET` | Azure AD App Client Secret |
+
+### Store IDs
+- **Microsoft Store:** `9NH43R1CMKFN`
+- **macOS Bundle ID:** `com.ywesee.eudamed2swissdamed`
+
 ## Architecture
 
 Data flow: `EUDAMED API → eudamed_json/{detail,basic}/*.json → Swissdamed DTOs → Swissdamed M2M API`

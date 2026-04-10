@@ -1,3 +1,6 @@
 /target
 /db
 /eudamed_json
+*.cer
+*.p12
+*.key
