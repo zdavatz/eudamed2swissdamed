@@ -40,7 +40,9 @@ cargo run -- stats                                # show version DB statistics
 
 ## CI/CD Release
 
-Tag-push (`v*`) triggers `.github/workflows/release.yml` which builds:
+Tag-push (`v*`) triggers `.github/workflows/release.yml` which automatically syncs `Cargo.toml` version from the git tag (e.g. `v0.1.5` → `version = "0.1.5"`) before building. No need to manually update `Cargo.toml` before tagging.
+
+Builds:
 - **macOS:** Universal binary → signed `.app` → notarized `.dmg` + App Store `.pkg`
 - **Windows:** `.zip` + `.msix` → Microsoft Store submission (if `MSSTORE_ENABLED=true`)
 - **Linux:** `.tar.gz` + `.AppImage`
