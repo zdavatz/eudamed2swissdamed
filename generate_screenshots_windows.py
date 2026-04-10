@@ -120,7 +120,7 @@ MONO_LOG = sized_font(MONO_PATHS, 32)
 SANS_TITLEBAR = sized_font(SANS_PATHS, 32)
 
 
-def draw_windows_titlebar(draw, img, title="eudamed2swissdamed v0.1.2"):
+def draw_windows_titlebar(draw, img, title="eudamed2swissdamed v0.1.4"):
     """Draw Windows 11-style light title bar with min/max/close buttons."""
     bar_h = 70
     # Title bar background
