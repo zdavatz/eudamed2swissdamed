@@ -14,8 +14,40 @@ use eudamed_api::EudamedClient;
 use swissdamed_api::SwissdamedClient;
 use version_db::VersionDb;
 
-const DATA_DIR: &str = "eudamed_json";
-const DB_PATH: &str = "db/version_tracking.db";
+const APP_DIR_NAME: &str = "eudamed2swissdamed";
+const DATA_DIR_NAME: &str = "eudamed_json";
+
+/// Return the application data directory (`~/eudamed2swissdamed/`).
+/// Under macOS App Sandbox, uses the container directory.
+/// On Windows uses `%USERPROFILE%\eudamed2swissdamed\`.
+/// Falls back to the current working directory.
+pub fn app_data_dir() -> PathBuf {
+    // macOS sandbox: APP_SANDBOX_CONTAINER_ID env var is set
+    if let Ok(container) = std::env::var("APP_SANDBOX_CONTAINER_ID") {
+        if !container.is_empty() {
+            if let Some(home) = std::env::var_os("HOME") {
+                let dir = PathBuf::from(home).join(APP_DIR_NAME);
+                let _ = fs::create_dir_all(&dir);
+                return dir;
+            }
+        }
+    }
+
+    // All platforms: ~/eudamed2swissdamed/
+    #[cfg(target_os = "windows")]
+    let home = std::env::var_os("USERPROFILE");
+    #[cfg(not(target_os = "windows"))]
+    let home = std::env::var_os("HOME");
+
+    if let Some(home) = home {
+        let dir = PathBuf::from(home).join(APP_DIR_NAME);
+        let _ = fs::create_dir_all(&dir);
+        return dir;
+    }
+
+    // Fallback: current working directory
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -96,11 +128,12 @@ fn cmd_download(args: &[String]) -> Result<()> {
     }
 
     let config = load_config()?;
+    let data_dir = app_data_dir().join(DATA_DIR_NAME);
     let client = EudamedClient::new(
         &config.eudamed_base_url,
         &config.eudamed_basic_url,
         config.parallel,
-        &PathBuf::from(DATA_DIR),
+        &data_dir,
     );
 
     // Step 1: Download listings
@@ -135,8 +168,10 @@ fn cmd_download(args: &[String]) -> Result<()> {
 
     // Step 5: Update version DB
     eprintln!("=== Step 5: Updating version DB ===");
-    fs::create_dir_all("db")?;
-    let db = VersionDb::open(&PathBuf::from(DB_PATH))?;
+    let db_dir = app_data_dir().join("db");
+    fs::create_dir_all(&db_dir)?;
+    let db_path = db_dir.join("version_tracking.db");
+    let db = VersionDb::open(&db_path)?;
     let mut updated = 0;
     for uuid in &uuids {
         let detail_path = client.detail_dir().join(format!("{}.json", uuid));
@@ -159,8 +194,9 @@ fn cmd_download(args: &[String]) -> Result<()> {
 // --- convert ---
 
 fn cmd_convert(args: &[String]) -> Result<()> {
-    let detail_dir = PathBuf::from(DATA_DIR).join("detail");
-    let basic_dir = PathBuf::from(DATA_DIR).join("basic");
+    let data_dir = app_data_dir().join(DATA_DIR_NAME);
+    let detail_dir = data_dir.join("detail");
+    let basic_dir = data_dir.join("basic");
 
     let uuid = args.iter()
         .position(|a| a == "--uuid")
@@ -248,8 +284,9 @@ fn cmd_push(args: &[String]) -> Result<()> {
         verbose,
     );
 
-    let detail_dir = PathBuf::from(DATA_DIR).join("detail");
-    let basic_dir = PathBuf::from(DATA_DIR).join("basic");
+    let data_dir = app_data_dir().join(DATA_DIR_NAME);
+    let detail_dir = data_dir.join("detail");
+    let basic_dir = data_dir.join("basic");
 
     if dry_run {
         let count = fs::read_dir(&detail_dir)?
@@ -266,8 +303,9 @@ fn cmd_push(args: &[String]) -> Result<()> {
 
     if only_changed {
         // Only push devices that have changed since last push
-        fs::create_dir_all("db")?;
-        let db = VersionDb::open(&PathBuf::from(DB_PATH))?;
+        let db_dir = app_data_dir().join("db");
+        fs::create_dir_all(&db_dir)?;
+        let db = VersionDb::open(&db_dir.join("version_tracking.db"))?;
         let mut submitted = 0;
         let mut failed = 0;
 
@@ -363,20 +401,21 @@ fn cmd_status(args: &[String]) -> Result<()> {
 // --- stats ---
 
 fn cmd_stats() -> Result<()> {
-    let db_path = PathBuf::from(DB_PATH);
+    let db_path = app_data_dir().join("db").join("version_tracking.db");
     if !db_path.exists() {
-        eprintln!("No version DB found at {}", DB_PATH);
+        eprintln!("No version DB found at {}", db_path.display());
         return Ok(());
     }
 
     let db = VersionDb::open(&db_path)?;
-    eprintln!("Version DB: {}", DB_PATH);
+    eprintln!("Version DB: {}", db_path.display());
     eprintln!("  Tracked devices: {}", db.count()?);
     eprintln!("  Successfully pushed: {}", db.count_pushed()?);
 
     // Count files on disk
-    let detail_dir = PathBuf::from(DATA_DIR).join("detail");
-    let basic_dir = PathBuf::from(DATA_DIR).join("basic");
+    let data_dir = app_data_dir().join(DATA_DIR_NAME);
+    let detail_dir = data_dir.join("detail");
+    let basic_dir = data_dir.join("basic");
 
     let detail_count = fs::read_dir(&detail_dir)
         .map(|rd| rd.filter_map(|e| e.ok()).count())
@@ -405,7 +444,8 @@ fn load_config() -> Result<Config> {
         .unwrap_or_else(|_| "https://playground.swissdamed.ch".to_string());
 
     // Try to read config.toml for EUDAMED settings
-    if let Ok(content) = fs::read_to_string("config.toml") {
+    let config_path = app_data_dir().join("config.toml");
+    if let Ok(content) = fs::read_to_string(&config_path) {
         let table: toml::Table = content.parse().unwrap_or_default();
 
         let eudamed = table.get("eudamed");

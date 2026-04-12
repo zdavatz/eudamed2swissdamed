@@ -41,8 +41,15 @@ The GUI provides:
 - SRN input (one per line, space or comma-separated)
 - Optional limit per SRN
 - Swissdamed credentials (Client ID, Secret, Base URL)
-- One-click "Download & Push" with live progress log
+- **Download & Push** — download from EUDAMED and push to Swissdamed
+- **Convert & Push (all)** — skip download, push all existing files
+- **Open Log Folder** — open HTML log reports in Finder/Explorer
 - Dry-run mode for download-only preview
+- Persistent settings (SRNs, credentials survive app restarts)
+- HTML push log reports with accepted/rejected summary
+- Version displayed in title bar
+
+All data is stored in `~/eudamed2swissdamed/` (all platforms).
 
 Credentials are pre-filled from environment variables if set.
 

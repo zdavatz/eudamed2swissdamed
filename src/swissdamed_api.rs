@@ -16,23 +16,23 @@ pub struct SwissdamedClient {
 }
 
 fn post_request(url: &str, content_type: &str, auth: Option<&str>, body: &str) -> Result<(u16, String)> {
-    let mut req = ureq::post(url)
+    let agent = ureq::Agent::config_builder()
+        .http_status_as_error(false)
+        .timeout_global(Some(std::time::Duration::from_secs(30)))
+        .build()
+        .new_agent();
+
+    let mut req = agent.post(url)
         .header("Content-Type", content_type);
     if let Some(auth) = auth {
         req = req.header("Authorization", auth);
     }
 
-    match req.send(body) {
-        Ok(resp) => {
-            let status = resp.status().as_u16();
-            let resp_body: String = resp.into_body().read_to_string().unwrap_or_default();
-            Ok((status, resp_body))
-        }
-        Err(ureq::Error::StatusCode(code)) => {
-            Ok((code, format!("HTTP {}", code)))
-        }
-        Err(e) => Err(anyhow::anyhow!("{}", e)),
-    }
+    let mut resp = req.send(body.as_bytes())
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let status = resp.status().as_u16();
+    let resp_body: String = resp.body_mut().read_to_string().unwrap_or_default();
+    Ok((status, resp_body))
 }
 
 impl SwissdamedClient {

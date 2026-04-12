@@ -94,6 +94,28 @@ Data flow: `EUDAMED API → eudamed_json/{detail,basic}/*.json → Swissdamed DT
 | `swissdamed_api.rs` | Swissdamed API client: OAuth2, submit, status check, market status |
 | `version_db.rs` | SQLite version tracking (SHA256 change detection, push audit log) |
 
+## Data Directory
+
+All data is stored in `~/eudamed2swissdamed/` (all platforms):
+- `eudamed_json/{detail,basic}/*.json` — downloaded device data
+- `db/version_tracking.db` — SQLite version tracking + push session logs
+- `settings.json` — persistent GUI settings (SRNs, credentials, etc.)
+- `log/*.log.html` — HTML push reports
+- `logs/*.log` — plain text pipeline logs
+- `config.toml` — optional EUDAMED API config overrides
+
+Under macOS App Sandbox, uses the container directory. On Windows uses `%USERPROFILE%\eudamed2swissdamed\`.
+
+## GUI Features
+
+- **Download & Push** — full pipeline: download from EUDAMED, push to Swissdamed
+- **Convert & Push (all)** — skip download, push all existing downloaded files
+- **Open Log Folder** — open HTML log reports
+- Persistent settings (SRNs, credentials survive restarts)
+- HTML push reports with accepted/rejected summary, error details, raw API responses
+- Version displayed in title bar
+- App icon with mailto: link
+
 Endpoint routing: `legislation_endpoint()` in `swissdamed.rs` determines which Swissdamed API endpoint to use based on SPP detection (multi_component criterion) and regulatory act (MDR/IVDR/MDD/AIMDD/IVDD).
 
 ## Relationship to eudamed2firstbase
