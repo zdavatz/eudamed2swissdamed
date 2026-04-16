@@ -27,22 +27,25 @@ impl EudamedClient {
         basic_udi_base_url: &str,
         parallel: usize,
         data_dir: &Path,
-    ) -> Self {
+    ) -> Result<Self> {
         let detail_dir = data_dir.join("detail");
         let basic_dir = data_dir.join("basic");
         let log_dir = data_dir.join("log");
-        fs::create_dir_all(&detail_dir).ok();
-        fs::create_dir_all(&basic_dir).ok();
-        fs::create_dir_all(&log_dir).ok();
+        fs::create_dir_all(&detail_dir)
+            .with_context(|| format!("Failed to create detail dir {}", detail_dir.display()))?;
+        fs::create_dir_all(&basic_dir)
+            .with_context(|| format!("Failed to create basic dir {}", basic_dir.display()))?;
+        fs::create_dir_all(&log_dir)
+            .with_context(|| format!("Failed to create log dir {}", log_dir.display()))?;
 
-        EudamedClient {
+        Ok(EudamedClient {
             base_url: base_url.to_string(),
             basic_udi_base_url: basic_udi_base_url.to_string(),
             parallel,
             detail_dir,
             basic_dir,
             log_dir,
-        }
+        })
     }
 
     pub fn detail_dir(&self) -> &Path {
@@ -249,15 +252,7 @@ impl EudamedClient {
             chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"),
             uuid
         );
-        fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(log_path)
-            .ok()
-            .map(|mut f| {
-                use std::io::Write;
-                let _ = f.write_all(entry.as_bytes());
-            });
+        append_download_log(&log_path, &entry)?;
 
         Ok(())
     }
@@ -337,15 +332,7 @@ impl EudamedClient {
             chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"),
             uuid
         );
-        fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(log_path)
-            .ok()
-            .map(|mut f| {
-                use std::io::Write;
-                let _ = f.write_all(entry.as_bytes());
-            });
+        append_download_log(&log_path, &entry)?;
 
         Ok(())
     }
@@ -363,7 +350,9 @@ impl EudamedClient {
                     Ok(body) => {
                         if let Ok(value) = serde_json::from_str::<serde_json::Value>(&body) {
                             let pretty = serde_json::to_string_pretty(&value).unwrap_or(body);
-                            fs::write(&detail_path, pretty).ok();
+                            fs::write(&detail_path, pretty).with_context(|| {
+                                format!("Failed to write retried detail file {}", detail_path.display())
+                            })?;
                         }
                     }
                     Err(_) => missing_detail += 1,
@@ -375,7 +364,9 @@ impl EudamedClient {
                 let url = format!("{}/{}?languageIso2Code=en", self.basic_udi_base_url, uuid);
                 match retry_fetch(&url, 5) {
                     Ok(body) => {
-                        fs::write(&basic_path, body).ok();
+                        fs::write(&basic_path, body).with_context(|| {
+                            format!("Failed to write retried basic file {}", basic_path.display())
+                        })?;
                     }
                     Err(_) => missing_basic += 1,
                 }
@@ -384,6 +375,19 @@ impl EudamedClient {
 
         Ok((missing_detail, missing_basic))
     }
+}
+
+fn append_download_log(log_path: &Path, entry: &str) -> Result<()> {
+    use std::io::Write;
+
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)
+        .with_context(|| format!("Failed to open download log {}", log_path.display()))?;
+    file.write_all(entry.as_bytes())
+        .with_context(|| format!("Failed to append to download log {}", log_path.display()))?;
+    Ok(())
 }
 
 fn retry_fetch(url: &str, max_attempts: u32) -> Result<String> {
