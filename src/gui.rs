@@ -24,6 +24,11 @@ enum WorkerMsg {
     Done { ok: bool, summary: String },
 }
 
+struct DialogMessage {
+    title: String,
+    message: String,
+}
+
 /// Persistent state saved between sessions.
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 struct Settings {
@@ -45,10 +50,10 @@ impl Settings {
             .unwrap_or_default()
     }
 
-    fn save(&self) {
-        if let Ok(json) = serde_json::to_string_pretty(self) {
-            let _ = std::fs::write(settings_path(), json);
-        }
+    fn save(&self) -> anyhow::Result<()> {
+        let json = serde_json::to_string_pretty(self)?;
+        std::fs::write(settings_path(), json)?;
+        Ok(())
     }
 }
 
@@ -60,6 +65,7 @@ pub struct App {
     rx: Option<mpsc::Receiver<WorkerMsg>>,
     show_credentials: bool,
     icon_texture: Option<egui::TextureHandle>,
+    dialog: Option<DialogMessage>,
     /// 0 = Download & Push, 1 = Convert & Push (existing files only)
     pipeline_mode: u8,
 }
@@ -91,23 +97,24 @@ impl App {
             rx: None,
             show_credentials: false,
             icon_texture: None,
+            dialog: None,
             pipeline_mode: 0,
         }
     }
 
-    fn save_log(&self) {
+    fn save_log(&self) -> anyhow::Result<()> {
         if self.log_lines.is_empty() {
-            return;
+            return Ok(());
         }
         let log_dir = logs_dir();
-        let _ = std::fs::create_dir_all(&log_dir);
+        std::fs::create_dir_all(&log_dir)?;
         let timestamp = chrono::Local::now().format("%Y-%m-%d_%H%M%S");
         let path = log_dir.join(format!("{}.log", timestamp));
-        if let Ok(mut f) = std::fs::File::create(&path) {
-            for line in &self.log_lines {
-                let _ = writeln!(f, "{}", line);
-            }
+        let mut f = std::fs::File::create(&path)?;
+        for line in &self.log_lines {
+            writeln!(f, "{}", line)?;
         }
+        Ok(())
     }
 
     fn start_pipeline(&mut self, ctx: egui::Context) {
@@ -127,8 +134,8 @@ impl App {
 
 impl eframe::App for App {
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
-        self.settings.save();
-        self.save_log();
+        let _ = self.settings.save();
+        let _ = self.save_log();
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -146,10 +153,24 @@ impl eframe::App for App {
                             self.log_lines.push(format!("=== DONE === {}", summary));
                         } else {
                             self.log_lines.push(format!("=== FAILED === {}", summary));
+                            self.dialog = Some(DialogMessage {
+                                title: "Pipeline Error".to_string(),
+                                message: summary.clone(),
+                            });
                         }
                         self.running = false;
-                        self.save_log();
-                        self.settings.save();
+                        if let Err(err) = self.save_log() {
+                            self.dialog = Some(DialogMessage {
+                                title: "Log Save Error".to_string(),
+                                message: err.to_string(),
+                            });
+                        }
+                        if let Err(err) = self.settings.save() {
+                            self.dialog = Some(DialogMessage {
+                                title: "Settings Save Error".to_string(),
+                                message: err.to_string(),
+                            });
+                        }
                     }
                 }
             }
@@ -177,7 +198,12 @@ impl eframe::App for App {
                             .frame(false),
                     ).on_hover_text("zdavatz@ywesee.com");
                     if icon_button.clicked() {
-                        let _ = open::that("mailto:zdavatz@ywesee.com");
+                        if let Err(err) = open::that("mailto:zdavatz@ywesee.com") {
+                            self.dialog = Some(DialogMessage {
+                                title: "Open Link Error".to_string(),
+                                message: err.to_string(),
+                            });
+                        }
                     }
                 });
             });
@@ -277,8 +303,22 @@ impl eframe::App for App {
                     .clicked()
                 {
                     let log_dir = crate::app_data_dir().join("log");
-                    let _ = std::fs::create_dir_all(&log_dir);
-                    let _ = open::that(&log_dir);
+                    match std::fs::create_dir_all(&log_dir) {
+                        Ok(()) => {
+                            if let Err(err) = open::that(&log_dir) {
+                                self.dialog = Some(DialogMessage {
+                                    title: "Open Log Folder Error".to_string(),
+                                    message: err.to_string(),
+                                });
+                            }
+                        }
+                        Err(err) => {
+                            self.dialog = Some(DialogMessage {
+                                title: "Create Log Folder Error".to_string(),
+                                message: err.to_string(),
+                            });
+                        }
+                    }
                 }
             });
 
@@ -301,8 +341,34 @@ impl eframe::App for App {
         // Auto-save settings whenever they change
         let current = serde_json::to_string(&self.settings).unwrap_or_default();
         if current != self.prev_settings {
-            self.settings.save();
+            if let Err(err) = self.settings.save() {
+                self.dialog = Some(DialogMessage {
+                    title: "Settings Save Error".to_string(),
+                    message: err.to_string(),
+                });
+            }
             self.prev_settings = current;
+        }
+
+        if let Some(dialog) = &self.dialog {
+            let title = dialog.title.clone();
+            let message = dialog.message.clone();
+            let mut close = false;
+            egui::Window::new(title)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .collapsible(false)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.set_min_width(420.0);
+                    ui.label(message);
+                    ui.add_space(12.0);
+                    if ui.button("Close").clicked() {
+                        close = true;
+                    }
+                });
+            if close {
+                self.dialog = None;
+            }
         }
     }
 }
@@ -365,12 +431,18 @@ fn run_pipeline(settings: Settings, mode: u8, tx: mpsc::Sender<WorkerMsg>, ctx: 
 
         // --- Step 1: Download listings ---
         progress("Download", "Fetching listings from EUDAMED...");
-        let client = EudamedClient::new(
+        let client = match EudamedClient::new(
             &config.eudamed_base_url,
             &config.eudamed_basic_url,
             config.parallel,
             &data_dir(),
-        );
+        ) {
+            Ok(client) => client,
+            Err(e) => {
+                done(false, &format!("Failed to initialize EUDAMED client: {}", e));
+                return;
+            }
+        };
 
         uuids = match client.download_listing(&srns, limit) {
             Ok(u) => u,
@@ -426,8 +498,16 @@ fn run_pipeline(settings: Settings, mode: u8, tx: mpsc::Sender<WorkerMsg>, ctx: 
             done(false, "No downloaded files found. Run Download & Push first.");
             return;
         }
-        uuids = std::fs::read_dir(&detail_dir)
-            .unwrap_or_else(|_| std::fs::read_dir(".").unwrap())
+        uuids = match std::fs::read_dir(&detail_dir) {
+            Ok(entries) => entries,
+            Err(e) => {
+                done(
+                    false,
+                    &format!("Failed to read detail directory {}: {}", detail_dir.display(), e),
+                );
+                return;
+            }
+        }
             .filter_map(|e| e.ok())
             .filter(|e| e.path().extension().map(|ext| ext == "json").unwrap_or(false))
             .filter_map(|e| e.path().file_stem().and_then(|s| s.to_str().map(|s| s.to_string())))

@@ -134,7 +134,7 @@ fn cmd_download(args: &[String]) -> Result<()> {
         &config.eudamed_basic_url,
         config.parallel,
         &data_dir,
-    );
+    )?;
 
     // Step 1: Download listings
     eprintln!("=== Step 1: Downloading listings ===");
